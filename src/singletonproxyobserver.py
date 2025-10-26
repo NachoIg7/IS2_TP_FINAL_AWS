@@ -235,7 +235,7 @@ class ProxyServer:
                     break
             
             if not data_chunks:
-                logging.warning(f"Conexión vacía desde {addr}")
+                logging.warning(f"Conexión vacia desde {addr}")
                 return
 
             full_data = b''.join(data_chunks).decode('utf-8')
@@ -250,9 +250,21 @@ class ProxyServer:
             # --- Manejo de acciones ---
             if action == "subscribe":
                 self.observer.add_subscriber(conn, addr)
-                response = {"status": "subscribed", "message": "Suscripción exitosa"}
+                response = {"status": "subscribed", "message": "Suscripcion exitosa"}
                 conn.sendall(json.dumps(response).encode('utf-8'))
-                # No cerrar la conexión para mantener la suscripción activa
+                # Escuchar pasivamente para detectar desconexión
+                try:
+                    while True:
+                        # Si el cliente cierra la conexión, recv() devuelve vacío
+                        ping = conn.recv(1)
+                        if not ping:
+                            logging.info(f"Suscriptor {addr} se desconectó.")
+                            break
+                except Exception as e:
+                    logging.debug(f"Fin de conexión con {addr}: {e}")
+                finally:
+                    self.observer.remove_subscriber(conn)
+                    conn.close()
                 return
 
             elif action == "get":
@@ -293,7 +305,7 @@ class ProxyServer:
                     logging.info(f"Observadores notificados del cambio en id: {data_to_save.get('id')}")
 
             else:
-                error_msg = {"Error": f"Acción no reconocida: {action}"}
+                error_msg = {"Error": f"Accion no reconocida: {action}"}
                 logging.warning(error_msg["Error"])
                 conn.sendall(json.dumps(error_msg).encode('utf-8'))
 

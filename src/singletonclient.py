@@ -65,7 +65,7 @@ def main():
     if "UUID" not in data:
         data["UUID"] = str(uuid.getnode())
 
-    logging.info(f"Enviando acción: {data.get('ACTION')} al servidor {args.server}:{args.port}")
+    logging.info(f"Enviando accion: {data.get('ACTION')} al servidor {args.server}:{args.port}")
     response = send_request(data, args.server, args.port)
 
     # Mostrar o guardar salida

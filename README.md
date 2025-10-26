@@ -1,100 +1,107 @@
 # repositorio TP FINAL IS2
 
-Este proyecto implementa clases para soportar servicios corporativos interactuando con DynamoDB para almacenar datos y logs.
+## Sistema Singleton-Proxy-Observer con AWS DynamoDB
 
-## Estructura del proyecto
+Sistema de gestión de datos corporativos implementando patrones de diseño Singleton, Proxy y Observer con AWS DynamoDB.
 
-/src
-  |--- corporate_data.py
-  |--- corporate_log.py
+## Componentes
 
-corporate_data.py:
-En este archivo se encuentra la clase CorporateData con los metodos getData , getCUIT , y getSeq. utiliza una conexion con la base de datos a DynamoDB
+### 1. singletonproxyobserver.py
 
-getData:
-Este método recibirá como argumentos un identificador único de sesión
-(uuid), un identificador único de CPU (uuidCPU) y id de sede (id).
+Servidor principal que maneja las conexiones y operaciones con DynamoDB.
 
-Retornará una estructura JSON con:
-o Id de sede
-o Domicilio.
-o Localidad.
-o Código Postal (cp)
-o Provincia.
-O texto de error en caso de no encontrar el registro.
+**Características:**
 
-• getCUIT:
-Similar al caso de getData pero el archivo JSON retornado contendrá el
-CUIT.
+- Patrón Singleton para acceso a tablas DynamoDB
+- Patrón Proxy para intermediar solicitudes
+- Patrón Observer para notificaciones en tiempo real
+- Thread-safe con locks para operaciones concurrentes
+- Validación robusta de datos antes de insertar en DynamoDB
+- Conversión automática de tipos para compatibilidad con DynamoDB
 
-• getSeqID:
-Similar al caso de getData pero el archivo JSON retornado contendrá un
-identificador único de secuencia (idSeq), luego de recuperar el mismo
-desde el database deberá incrementarse en 1 el identificador.
+### 2. singletonclient.py
 
-• listCorporateData
-Producirá un listado de todos los datos contenidos en la tabla
-CorporateData para una clave (id) determinado.
+Cliente para enviar operaciones (get/set/list) al servidor.
 
-• listCorporateLog
-Producirá un listado de todas las entradas contenidas en la tabla
-CorporateLog para una clave de CPU determinada.
+**Uso:**
+\`\`\`bash
 
-corporate_log.py:
-En este archivo se encuentra la clase CorporateLog creada con un patron
-singleton, una vez que se inicializa la clase crea otra clase denominada log
-que registrarán las acciones realizadas con propósito de auditoría ulterior.
-La clase log tambien creada con un patron singleton, debe implemetar solo
-dos metodos:
+#### Insertar datos
 
-post
-Este método recibirá como argumentos un identificador único de sesión
-(uuid) y un string de caracteres con el nombre del método que lo invoca.
-El método grabará un registro en la tabla Log donde agregará datos de la
-CPU donde está corriendo y el timestamp de la operación.
+python singletonclient.py -i input.json -v
 
-list
-Este método recibirá como argumento un indicador único de CPU y un
-indicador único de sesión y listará todas las entradas que hubiera para el
-mismo. Si el indicador de sesión es omitido listará todas las entradas para
-la CPU.
+#### Con servidor personalizado
 
-/scripts
-  |--- UADER_IS2_listCorporateData.py
-  |--- UADER_IS2_listLog.py
+python singletonclient.py -i input.json -s localhost -p 8080 -v
 
-UADER_IS2_listCorporateData.py:
+#### Guardar respuesta en archivo
 
-Imprime los datos de la Tabla CorporateLog
+python singletonclient.py -i input.json -o output.json
+\`\`\`
 
-UADER_IS2_listLog.py:
+### 3. observerclient.py
 
-Retorna una estructura JSON con todas las filas de la tabla
-CorporateLog donde la uuidCPU coincida con la CPU que utilice
-para el desarrollo.
+Cliente que se suscribe para recibir actualizaciones en tiempo real.
 
-/test
-  |--- test_corporate_data.py
-  |--- test_corporate_log.py
+**Uso:**
+\`\`\`bash
 
-archivo test_corporate_data.py:
+#### Suscribirse al servidor
 
-En este archivo se realizan pruebas de test, verificando camino feliz y caminos con errores.
+python observerclient.py -v
 
-# Realizamos una funcion de Prueba para obtener datos con un ID válido
+#### Guardar actualizaciones en archivo
 
-# Prueba para obtener datos con un ID inválido
+python observerclient.py -o updates.log -v
+\`\`\`
 
-# Prueba para obtener datos con un ID vacío
+### 4. test_TPFI.py
 
-# Prueba para ID válido pero campo vacío
+Script de diagnóstico para verificar la conexión con DynamoDB.
 
-# Prueba para verificar el patrón Singleton
+**Uso:**
+\`\`\`bash
+python test_TPFI.py
+\`\`\`
 
-archivo test_corporate_log.py:
+## Formato de Datos
 
-# Probar el registro de un evento exitoso
+### Archivo input.json
 
-# Probar la lista de logs cuando se proporciona un ID de CPU inválido
+\`\`\`json
+{
+  "ACTION": "set",
+  "id": "UADER-FCyT-IS2",
+  "cp": "3260",
+  "CUIT": "30-70925411-8",
+  "domicilio": "25 de Mayo 385-1P",
+  "localidad": "Concepción del Uruguay",
+  "provincia": "Entre Rios",
+  "sede": "FCyT",
+  "telefono": "03442 43-1442",
+  "web": "<http://www.uader.edu.ar>"
+}
+\`\`\`
 
-# Verificar que la clase CorporateLog siga el patrón Singleton
+**Nota:** El campo `id` es obligatorio para operaciones SET.
+
+## Acciones Disponibles
+
+- **set**: Insertar o actualizar un registro (requiere campo `id`)
+- **get**: Obtener un registro por ID
+- **list**: Listar todos los registros
+- **subscribe**: Suscribirse para recibir actualizaciones en tiempo real
+
+### Verificar estructura de la tabla
+
+\`\`\`bash
+aws dynamodb describe-table --table-name CorporateData --region us-east-1
+\`\`\`
+
+## Requisitos
+
+- Python 3.7+
+- boto3
+- Credenciales AWS configuradas en `~/.aws/credentials`
+- Tabla `CorporateData` en DynamoDB con clave primaria `id` (String)
+- Tabla `CorporateLog` en DynamoDB para auditoría
